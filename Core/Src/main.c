@@ -45,13 +45,16 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint32_t time_btn_press = 0;
+uint8_t flag = 0;
+uint8_t flag_btn_press = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void ReadButton(void);
+void display_button_presses(int number);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -97,6 +100,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  ReadButton();
+	  display_button_presses(flag);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -150,7 +155,43 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void ReadButton(void)
+{
+	if (HAL_GPIO_ReadPin(GPIOC, BTN1_Pin) == GPIO_PIN_RESET && flag_btn_press)
+	{
+	  flag_btn_press = 0;
+	  time_btn_press = HAL_GetTick();
+	}
 
+	if(!flag_btn_press && (HAL_GetTick() - time_btn_press) > 200)
+	{
+	  flag_btn_press = 1;
+	  flag += 1;
+	}
+}
+void display_button_presses(int number)
+{
+	if (number == 0)
+	{
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+	}
+	else if (number % 3 == 2)
+	{
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+	}
+	else if (number % 3 == 1)
+	{
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
+	}
+	else if (number % 3 == 0)
+	{
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
+	}
+}
 /* USER CODE END 4 */
 
 /**
