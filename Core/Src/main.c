@@ -50,10 +50,11 @@
 /* USER CODE BEGIN PV */
 uint8_t flag_err = 0;
 uint8_t flag_tim = 0;
+uint8_t flag_btn = 0;
 char str[3] = {0,};
 RING_buffer_t ring;
 uint8_t buff[BUFF_SIZE];
-uint8_t brightness = 0;
+uint8_t brightness = 99;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -99,6 +100,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   RING_Init(&ring, buff, sizeof(buff) / sizeof(buff[0])); // Initialize UART receiver ring buffer.
   sprintf((char*)tstring,"\r\nEnter command:\n\r"
@@ -108,15 +110,80 @@ int main(void)
   HAL_UART_Transmit(&huart2,tstring,strlen((char*)tstring), HAL_MAX_DELAY);
   // Start UART receiver in the non blocking mode
   HAL_UART_Receive_IT(&huart2,ring.buffer,1);
+  TIM1->CCR1 = brightness;
+  TIM1->CCR2 = brightness;
+  TIM1->CCR3 = brightness;
+  TIM2->CCR1 = brightness;
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+	  switch(flag_btn)
+	  {
+	  	  case 0:
+	  		TIM1->CCR1 = 0;
+			TIM1->CCR2 = 0;
+			TIM1->CCR3 = 0;
+			TIM2->CCR1 = 0;
+			break;
+	  	  case 1:
+			TIM1->CCR1 = 0;
+			TIM1->CCR2 = 0;
+			TIM1->CCR3 = brightness;
+			TIM2->CCR1 = brightness;
+			break;
+	  	  case 2:
+			TIM1->CCR1 = 0;
+			TIM1->CCR2 = brightness;
+			TIM1->CCR3 = 0;
+			TIM2->CCR1 = 0;
+			break;
+	  	  case 3:
+			TIM1->CCR1 = 0;
+			TIM1->CCR2 = brightness;
+			TIM1->CCR3 = brightness;
+			TIM2->CCR1 = brightness;
+			break;
+	  	  case 4:
+			TIM1->CCR1 = brightness;
+			TIM1->CCR2 = 0;
+			TIM1->CCR3 = 0;
+			TIM2->CCR1 = 0;
+			break;
+	  	  case 5:
+			TIM1->CCR1 = brightness;
+			TIM1->CCR2 = 0;
+			TIM1->CCR3 = brightness;
+			TIM2->CCR1 = brightness;
+			break;
+	  	  case 6:
+			TIM1->CCR1 = brightness;
+			TIM1->CCR2 = brightness;
+			TIM1->CCR3 = 0;
+			TIM2->CCR1 = 0;
+			break;
+	  	  case 7:
+			TIM1->CCR1 = brightness;
+			TIM1->CCR2 = brightness;
+			TIM1->CCR3 = brightness;
+			TIM2->CCR1 = brightness;
+			break;
+	  }
+		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
 	  if (Ring_GetMessage(&ring, rstring))
 	  {
 		  sscanf((char*)rstring,"%s", string);
@@ -151,19 +218,22 @@ int main(void)
 		  }
 		  HAL_UART_Transmit_IT(&huart2,tstring,strlen((char*)tstring));
 		  flag_err = 0;
-		  if (flag_tim == 1)
+		  /*if (flag_tim == 1)
 		  {
 			  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
 			  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
 			  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+			  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 			  TIM1->CCR1 = brightness;
 		  	  TIM1->CCR2 = brightness;
 		  	  TIM1->CCR3 = brightness;
+		  	  TIM2->CCR1 = brightness;
 		  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 		  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 		  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+		  	  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 		  	  flag_tim = 0;
-		  }
+		  }*/
 	  }
     /* USER CODE END WHILE */
 
@@ -233,6 +303,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			ring.flag.MessageReady = 1;
 		// Receive the next character from UART in non blocking mode
 		HAL_UART_Receive_IT(&huart2,&ring.buffer[ring.idxOut],1);
+	}
+}
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if (GPIO_Pin == BTN_Pin)
+	{
+		flag_btn++;
+		if (flag_btn > 7) flag_btn = 0;
 	}
 }
 /* USER CODE END 4 */
