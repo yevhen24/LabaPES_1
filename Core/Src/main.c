@@ -24,7 +24,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <string.h>
+#include "ring_buffer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -34,6 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define BUFF_SIZE 16
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,7 +47,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+char str[3] = {0,};
+RING_buffer_t ring;
+uint8_t buff[BUFF_SIZE];
+uint8_t brightness = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,7 +71,10 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	uint8_t flag_err = 0;
+	uint8_t tstring[255];
+	uint8_t rstring[BUFF_SIZE + 1];
+	char string[10] = {0,0};
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -88,13 +97,55 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  RING_Init(&ring, buff, sizeof(buff) / sizeof(buff[0])); // Initialize UART receiver ring buffer.
+  sprintf((char*)tstring,"\r\nEnter command:\n\r"
+  		  "L=xx -- brightness for LEDs, where xx - value of brightness\n\r"
+  		  "OR\n\r"
+  		  "l=xx -- brightness for LEDs, where xx - value of brightness.\n\r\n\r");
+  HAL_UART_Transmit(&huart2,tstring,strlen((char*)tstring), HAL_MAX_DELAY);
+  // Start UART receiver in the non blocking mode
+  HAL_UART_Receive_IT(&huart2,ring.buffer,1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if (Ring_GetMessage(&ring, rstring))
+	  {
+		  sscanf((char*)rstring,"%s", string);
+		  for (int i = 0; i < 3; i++)
+		  {
+			  str[i] = string[i+2];
+		  }
+		  if (str[1] == '\r' || str[1] == '\n' || str[1] == '\0')
+		  {
+			  brightness = ((int) str[0]) - 48;
+			  flag_err = 1;
+		  }
+		  else if (str[2] == '\r' || str[2] == '\n' || str[2] == '\0')
+		  {
+			  brightness = ((((int) str[0]) - 48) * 10) + (((int) str[1]) - 48);
+			  flag_err = 1;
+		  }
+		  else
+		  {
+			  flag_err = 2;
+		  }
+		  RING_Clear(&ring);
+		  if ((string[0] == 'L' || string[0] == 'l') && (string[1] == '=') && (flag_err == 1))
+		  {
+			  sprintf((char*)tstring,"\n\rEcho: %s\n\r"
+			  				  "Enter command 'L=xx' or 'l=xx'\r\n",string);
+		  }
+		  else
+		  {
+			  sprintf((char*)tstring,"\n\rEcho: Wrong command!!!\r\n"
+					  	  	  "Enter command 'L=xx' or 'l=xx'\r\n");
+		  }
+		  HAL_UART_Transmit_IT(&huart2,tstring,strlen((char*)tstring));
+		  flag_err = 0;
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -148,7 +199,23 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	// Check that interrupt caused by UART2
+	if (huart == &huart2)
+	{
+		// Put new character from the UART receiver data register (DR) to the ring buffer
+		RING_Put(huart->Instance->DR, &ring);
+		// Set the overrun flag if the message is longer than ring buffer can hold
+		if (ring.idxOut == ring.idxIn) ring.flag.BufferOverrun = 1;
+		// Set the message ready flag if the end of line character has been received
+		if ((ring.buffer[ring.idxIn -1] == '\r') ||
+				(ring.buffer[ring.idxOut -1] == '\n'))
+			ring.flag.MessageReady = 1;
+		// Receive the next character from UART in non blocking mode
+		HAL_UART_Receive_IT(&huart2,&ring.buffer[ring.idxOut],1);
+	}
+}
 /* USER CODE END 4 */
 
 /**
