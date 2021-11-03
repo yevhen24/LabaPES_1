@@ -48,6 +48,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+uint8_t flag_err = 0;
+uint8_t flag_tim = 0;
 char str[3] = {0,};
 RING_buffer_t ring;
 uint8_t buff[BUFF_SIZE];
@@ -72,7 +74,6 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint8_t flag_err = 0;
 	uint8_t tstring[255];
 	uint8_t rstring[BUFF_SIZE + 1];
 	char string[10] = {0,0};
@@ -107,6 +108,9 @@ int main(void)
   HAL_UART_Transmit(&huart2,tstring,strlen((char*)tstring), HAL_MAX_DELAY);
   // Start UART receiver in the non blocking mode
   HAL_UART_Receive_IT(&huart2,ring.buffer,1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -147,6 +151,19 @@ int main(void)
 		  }
 		  HAL_UART_Transmit_IT(&huart2,tstring,strlen((char*)tstring));
 		  flag_err = 0;
+		  if (flag_tim == 1)
+		  {
+			  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+			  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+			  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+			  TIM1->CCR1 = brightness;
+		  	  TIM1->CCR2 = brightness;
+		  	  TIM1->CCR3 = brightness;
+		  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+		  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+		  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+		  	  flag_tim = 0;
+		  }
 	  }
     /* USER CODE END WHILE */
 
@@ -205,6 +222,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	// Check that interrupt caused by UART2
 	if (huart == &huart2)
 	{
+		flag_tim = 1;
 		// Put new character from the UART receiver data register (DR) to the ring buffer
 		RING_Put(huart->Instance->DR, &ring);
 		// Set the overrun flag if the message is longer than ring buffer can hold
