@@ -182,41 +182,41 @@ int main(void)
 			flag_btn++;
 			if (flag_btn > 7) flag_btn = 0;
 		}
-	  if (Ring_GetMessage(&ring, rstring))
-	  {
-		  sscanf((char*)rstring,"%s", string);
-		  for (int i = 0; i < 3; i++)
-		  {
-			  str[i] = string[i+2];
-		  }
-		  if (str[1] == '\r' || str[1] == '\n' || str[1] == '\0')
-		  {
-			  brightness = ((int) str[0]) - 48;
-			  flag_err = 1;
-		  }
-		  else if (str[2] == '\r' || str[2] == '\n' || str[2] == '\0')
-		  {
-			  brightness = ((((int) str[0]) - 48) * 10) + (((int) str[1]) - 48);
-			  flag_err = 1;
-		  }
-		  else
-		  {
-			  flag_err = 2;
-		  }
-		  RING_Clear(&ring);
-		  if ((string[0] == 'L' || string[0] == 'l') && (string[1] == '=') && (flag_err == 1))
-		  {
-			  sprintf((char*)tstring,"\n\rEcho: %s\n\r"
-			  				  "Enter command 'L=xx' or 'l=xx'\r\n",string);
-		  }
-		  else
-		  {
-			  sprintf((char*)tstring,"\n\rEcho: Wrong command!!!\r\n"
-					  	  	  "Enter command 'L=xx' or 'l=xx'\r\n");
-		  }
-		  HAL_UART_Transmit_IT(&huart2,tstring,strlen((char*)tstring));
-		  flag_err = 0;
-	  }
+		if (Ring_GetMessage(&ring, rstring))
+		{
+			sscanf((char*)rstring,"%s", string);
+			for (int i = 0; i < 3; i++)
+			{
+				str[i] = string[i+2];
+			}
+			if (str[1] == '\r' || str[1] == '\n' || str[1] == '\0')
+			{
+				brightness = ((int) str[0]) - 48;
+				flag_err = 1;
+			}
+			else if (str[2] == '\r' || str[2] == '\n' || str[2] == '\0')
+			{
+				brightness = ((((int) str[0]) - 48) * 10) + (((int) str[1]) - 48);
+				flag_err = 1;
+			}
+			else
+			{
+				flag_err = 2;
+			}
+			RING_Clear(&ring);
+			if ((string[0] == 'L' || string[0] == 'l') && (string[1] == '=') && (flag_err == 1))
+			{
+				sprintf((char*)tstring,"\n\rEcho: %s\n\r"
+							  "Enter command 'L=xx' or 'l=xx'\r\n",string);
+			}
+			else
+			{
+				sprintf((char*)tstring,"\n\rEcho: Wrong command!!!\r\n"
+							  "Enter command 'L=xx' or 'l=xx'\r\n");
+			}
+			HAL_UART_Transmit_IT(&huart2,tstring,strlen((char*)tstring));
+			flag_err = 0;
+		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -279,8 +279,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		// Set the overrun flag if the message is longer than ring buffer can hold
 		if (ring.idxOut == ring.idxIn) ring.flag.BufferOverrun = 1;
 		// Set the message ready flag if the end of line character has been received
-		if ((ring.buffer[ring.idxIn -1] == '\r') ||
-				(ring.buffer[ring.idxOut -1] == '\n'))
+		if ((ring.buffer[ring.idxIn -1] == '\r') || (ring.buffer[ring.idxOut -1] == '\n'))
 			ring.flag.MessageReady = 1;
 		// Receive the next character from UART in non blocking mode
 		HAL_UART_Receive_IT(&huart2,&ring.buffer[ring.idxOut],1);
@@ -290,13 +289,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == BTN_Pin)
 	{
-		/*time_key1_press = HAL_GetTick();
-		if((HAL_GetTick() - time_key1_press) > 200)
-		{
-			flag_btn++;
-		}
-		if (flag_btn > 7) flag_btn = 0;
-		*/
 		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
 		flag_irq = 1;
 		time_irq = HAL_GetTick();
