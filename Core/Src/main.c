@@ -180,6 +180,7 @@ int main(void)
 
 			flag_irq = 0;
 			flag_btn++;
+			if (flag_btn > 7) flag_btn = 0;
 		}
 	  if (Ring_GetMessage(&ring, rstring))
 	  {
