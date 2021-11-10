@@ -54,7 +54,8 @@ char str[3] = {0,};
 RING_buffer_t ring;
 uint8_t buff[BUFF_SIZE];
 uint8_t brightness = 50;
-uint32_t time_key1_press = 0;
+volatile uint32_t time_irq = 0;
+volatile uint8_t flag_irq = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -124,53 +125,62 @@ int main(void)
 		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
 		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
 		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
-	  switch(flag_btn)
-	  {
-	  	  case 0:
-	  		TIM1->CCR1 = 0;
-			TIM1->CCR2 = 0;
-			TIM1->CCR3 = 0;
-			break;
-	  	  case 1:
-			TIM1->CCR1 = 0;
-			TIM1->CCR2 = 0;
-			TIM1->CCR3 = brightness;
-			break;
-	  	  case 2:
-			TIM1->CCR1 = 0;
-			TIM1->CCR2 = brightness;
-			TIM1->CCR3 = 0;
-			break;
-	  	  case 3:
-			TIM1->CCR1 = 0;
-			TIM1->CCR2 = brightness;
-			TIM1->CCR3 = brightness;
-			break;
-	  	  case 4:
-			TIM1->CCR1 = brightness;
-			TIM1->CCR2 = 0;
-			TIM1->CCR3 = 0;
-			break;
-	  	  case 5:
-			TIM1->CCR1 = brightness;
-			TIM1->CCR2 = 0;
-			TIM1->CCR3 = brightness;
-			break;
-	  	  case 6:
-			TIM1->CCR1 = brightness;
-			TIM1->CCR2 = brightness;
-			TIM1->CCR3 = 0;
-			break;
-	  	  case 7:
-			TIM1->CCR1 = brightness;
-			TIM1->CCR2 = brightness;
-			TIM1->CCR3 = brightness;
-			break;
-	  }
+		switch(flag_btn)
+		{
+			case 0:
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = 0;
+				TIM1->CCR3 = 0;
+				break;
+			case 1:
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = 0;
+				TIM1->CCR3 = brightness;
+				break;
+			case 2:
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = brightness;
+				TIM1->CCR3 = 0;
+				break;
+			case 3:
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = brightness;
+				TIM1->CCR3 = brightness;
+				break;
+			case 4:
+				TIM1->CCR1 = brightness;
+				TIM1->CCR2 = 0;
+				TIM1->CCR3 = 0;
+				break;
+			case 5:
+				TIM1->CCR1 = brightness;
+				TIM1->CCR2 = 0;
+				TIM1->CCR3 = brightness;
+				break;
+			case 6:
+				TIM1->CCR1 = brightness;
+				TIM1->CCR2 = brightness;
+				TIM1->CCR3 = 0;
+				break;
+			case 7:
+				TIM1->CCR1 = brightness;
+				TIM1->CCR2 = brightness;
+				TIM1->CCR3 = brightness;
+				break;
+		}
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 
+		if(flag_irq && (HAL_GetTick() - time_irq) > 200)
+		{
+			__HAL_GPIO_EXTI_CLEAR_IT(BTN_Pin);
+			NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+			HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
+			flag_irq = 0;
+			flag_btn++;
+		}
 	  if (Ring_GetMessage(&ring, rstring))
 	  {
 		  sscanf((char*)rstring,"%s", string);
@@ -279,12 +289,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == BTN_Pin)
 	{
-		time_key1_press = HAL_GetTick();
+		/*time_key1_press = HAL_GetTick();
 		if((HAL_GetTick() - time_key1_press) > 200)
 		{
 			flag_btn++;
 		}
 		if (flag_btn > 7) flag_btn = 0;
+		*/
+		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
+		flag_irq = 1;
+		time_irq = HAL_GetTick();
 	}
 }
 /* USER CODE END 4 */
