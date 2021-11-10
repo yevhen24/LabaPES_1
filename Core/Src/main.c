@@ -54,6 +54,8 @@ char str[3] = {0,};
 RING_buffer_t ring;
 uint8_t buff[BUFF_SIZE];
 uint8_t brightness = 50;
+volatile uint32_t time_irq = 0;
+volatile uint8_t flag_irq = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -123,88 +125,98 @@ int main(void)
 		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
 		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
 		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
-	  switch(flag_btn)
-	  {
-	  	  case 0:
-	  		TIM1->CCR1 = 0;
-			TIM1->CCR2 = 0;
-			TIM1->CCR3 = 0;
-			break;
-	  	  case 1:
-			TIM1->CCR1 = 0;
-			TIM1->CCR2 = 0;
-			TIM1->CCR3 = brightness;
-			break;
-	  	  case 2:
-			TIM1->CCR1 = 0;
-			TIM1->CCR2 = brightness;
-			TIM1->CCR3 = 0;
-			break;
-	  	  case 3:
-			TIM1->CCR1 = 0;
-			TIM1->CCR2 = brightness;
-			TIM1->CCR3 = brightness;
-			break;
-	  	  case 4:
-			TIM1->CCR1 = brightness;
-			TIM1->CCR2 = 0;
-			TIM1->CCR3 = 0;
-			break;
-	  	  case 5:
-			TIM1->CCR1 = brightness;
-			TIM1->CCR2 = 0;
-			TIM1->CCR3 = brightness;
-			break;
-	  	  case 6:
-			TIM1->CCR1 = brightness;
-			TIM1->CCR2 = brightness;
-			TIM1->CCR3 = 0;
-			break;
-	  	  case 7:
-			TIM1->CCR1 = brightness;
-			TIM1->CCR2 = brightness;
-			TIM1->CCR3 = brightness;
-			break;
-	  }
+		switch(flag_btn)
+		{
+			case 0:
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = 0;
+				TIM1->CCR3 = 0;
+				break;
+			case 1:
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = 0;
+				TIM1->CCR3 = brightness;
+				break;
+			case 2:
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = brightness;
+				TIM1->CCR3 = 0;
+				break;
+			case 3:
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = brightness;
+				TIM1->CCR3 = brightness;
+				break;
+			case 4:
+				TIM1->CCR1 = brightness;
+				TIM1->CCR2 = 0;
+				TIM1->CCR3 = 0;
+				break;
+			case 5:
+				TIM1->CCR1 = brightness;
+				TIM1->CCR2 = 0;
+				TIM1->CCR3 = brightness;
+				break;
+			case 6:
+				TIM1->CCR1 = brightness;
+				TIM1->CCR2 = brightness;
+				TIM1->CCR3 = 0;
+				break;
+			case 7:
+				TIM1->CCR1 = brightness;
+				TIM1->CCR2 = brightness;
+				TIM1->CCR3 = brightness;
+				break;
+		}
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 
-	  if (Ring_GetMessage(&ring, rstring))
-	  {
-		  sscanf((char*)rstring,"%s", string);
-		  for (int i = 0; i < 3; i++)
-		  {
-			  str[i] = string[i+2];
-		  }
-		  if (str[1] == '\r' || str[1] == '\n' || str[1] == '\0')
-		  {
-			  brightness = ((int) str[0]) - 48;
-			  flag_err = 1;
-		  }
-		  else if (str[2] == '\r' || str[2] == '\n' || str[2] == '\0')
-		  {
-			  brightness = ((((int) str[0]) - 48) * 10) + (((int) str[1]) - 48);
-			  flag_err = 1;
-		  }
-		  else
-		  {
-			  flag_err = 2;
-		  }
-		  RING_Clear(&ring);
-		  if ((string[0] == 'L' || string[0] == 'l') && (string[1] == '=') && (flag_err == 1))
-		  {
-			  sprintf((char*)tstring,"\n\rEcho: %s\n\r"
-			  				  "Enter command 'L=xx' or 'l=xx'\r\n",string);
-		  }
-		  else
-		  {
-			  sprintf((char*)tstring,"\n\rEcho: Wrong command!!!\r\n"
-					  	  	  "Enter command 'L=xx' or 'l=xx'\r\n");
-		  }
-		  HAL_UART_Transmit_IT(&huart2,tstring,strlen((char*)tstring));
-		  flag_err = 0;
-	  }
+		if(flag_irq && (HAL_GetTick() - time_irq) > 200)
+		{
+			__HAL_GPIO_EXTI_CLEAR_IT(BTN_Pin);
+			NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+			HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
+			flag_irq = 0;
+			flag_btn++;
+			if (flag_btn > 7) flag_btn = 0;
+		}
+		if (Ring_GetMessage(&ring, rstring))
+		{
+			sscanf((char*)rstring,"%s", string);
+			for (int i = 0; i < 3; i++)
+			{
+				str[i] = string[i+2];
+			}
+			if (str[1] == '\r' || str[1] == '\n' || str[1] == '\0')
+			{
+				brightness = ((int) str[0]) - 48;
+				flag_err = 1;
+			}
+			else if (str[2] == '\r' || str[2] == '\n' || str[2] == '\0')
+			{
+				brightness = ((((int) str[0]) - 48) * 10) + (((int) str[1]) - 48);
+				flag_err = 1;
+			}
+			else
+			{
+				flag_err = 2;
+			}
+			RING_Clear(&ring);
+			if ((string[0] == 'L' || string[0] == 'l') && (string[1] == '=') && (flag_err == 1))
+			{
+				sprintf((char*)tstring,"\n\rEcho: %s\n\r"
+							  "Enter command 'L=xx' or 'l=xx'\r\n",string);
+			}
+			else
+			{
+				sprintf((char*)tstring,"\n\rEcho: Wrong command!!!\r\n"
+							  "Enter command 'L=xx' or 'l=xx'\r\n");
+			}
+			HAL_UART_Transmit_IT(&huart2,tstring,strlen((char*)tstring));
+			flag_err = 0;
+		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -267,8 +279,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		// Set the overrun flag if the message is longer than ring buffer can hold
 		if (ring.idxOut == ring.idxIn) ring.flag.BufferOverrun = 1;
 		// Set the message ready flag if the end of line character has been received
-		if ((ring.buffer[ring.idxIn -1] == '\r') ||
-				(ring.buffer[ring.idxOut -1] == '\n'))
+		if ((ring.buffer[ring.idxIn -1] == '\r') || (ring.buffer[ring.idxOut -1] == '\n'))
 			ring.flag.MessageReady = 1;
 		// Receive the next character from UART in non blocking mode
 		HAL_UART_Receive_IT(&huart2,&ring.buffer[ring.idxOut],1);
@@ -278,8 +289,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == BTN_Pin)
 	{
-		flag_btn++;
-		if (flag_btn > 7) flag_btn = 0;
+		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
+		flag_irq = 1;
+		time_irq = HAL_GetTick();
 	}
 }
 /* USER CODE END 4 */
