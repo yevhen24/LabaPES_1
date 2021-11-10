@@ -54,6 +54,7 @@ char str[3] = {0,};
 RING_buffer_t ring;
 uint8_t buff[BUFF_SIZE];
 uint8_t brightness = 50;
+uint32_t time_key1_press = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -278,7 +279,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == BTN_Pin)
 	{
-		flag_btn++;
+		time_key1_press = HAL_GetTick();
+		if((HAL_GetTick() - time_key1_press) > 200)
+		{
+			flag_btn++;
+		}
 		if (flag_btn > 7) flag_btn = 0;
 	}
 }
