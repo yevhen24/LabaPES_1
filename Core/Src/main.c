@@ -61,7 +61,7 @@ volatile uint8_t flag_irq = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+uint8_t Command_read(char str);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -122,9 +122,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
 		switch(flag_btn)
 		{
 			case 0:
@@ -168,9 +165,6 @@ int main(void)
 				TIM1->CCR3 = brightness;
 				break;
 		}
-		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 
 		if(flag_irq && (HAL_GetTick() - time_irq) > 200)
 		{
@@ -184,35 +178,63 @@ int main(void)
 		}
 		if (Ring_GetMessage(&ring, rstring))
 		{
+			uint8_t buf, buf_;
 			sscanf((char*)rstring,"%s", string);
-			for (int i = 0; i < 3; i++)
+			buf = Command_read(string[0]);
+			switch(buf)
 			{
-				str[i] = string[i+2];
-			}
-			if (str[1] == '\r' || str[1] == '\n' || str[1] == '\0')
-			{
-				brightness = ((int) str[0]) - 48;
-				flag_err = 1;
-			}
-			else if (str[2] == '\r' || str[2] == '\n' || str[2] == '\0')
-			{
-				brightness = ((((int) str[0]) - 48) * 10) + (((int) str[1]) - 48);
-				flag_err = 1;
-			}
-			else
-			{
-				flag_err = 2;
+			case 11:
+				buf = Command_read(string[1]);
+				switch(buf)
+				{
+				case 10:
+					for (int i = 0; i < 3; i++)
+					{
+						str[i] = string[i+2];
+					}
+					if (str[1] == '\r' || str[1] == '\n' || str[1] == '\0')
+					{
+						buf = Command_read(str[0]);
+						if ((buf != 12) && (buf != 11) && (buf != 10))
+						{
+							brightness = buf; flag_err = 1;
+						}
+						else
+						{
+							flag_err = 2; break;
+						}
+					}
+					else if (str[2] == '\r' || str[2] == '\n' || str[2] == '\0')
+					{
+						buf = Command_read(str[0]);
+						buf_ = buf;
+						buf = Command_read(str[1]);
+						if ((buf != 12) && (buf != 11) && (buf != 10) && (buf_ != 11) && (buf_ != 12) && (buf_ != 10))
+						{
+							brightness = (buf_ * 10) + buf; flag_err = 1;
+						}
+						else
+						{
+							flag_err = 2; break;
+						}
+					}
+					break;
+				case 12: flag_err = 2; break;
+				}
+				break;
+			case 12: flag_err = 2; break;
 			}
 			RING_Clear(&ring);
-			if ((string[0] == 'L' || string[0] == 'l') && (string[1] == '=') && (flag_err == 1))
+			switch(flag_err)
 			{
+			case 1:
 				sprintf((char*)tstring,"\n\rEcho: %s\n\r"
 							  "Enter command 'L=xx' or 'l=xx'\r\n",string);
-			}
-			else
-			{
+				break;
+			case 2:
 				sprintf((char*)tstring,"\n\rEcho: Wrong command!!!\r\n"
 							  "Enter command 'L=xx' or 'l=xx'\r\n");
+				break;
 			}
 			HAL_UART_Transmit_IT(&huart2,tstring,strlen((char*)tstring));
 			flag_err = 0;
@@ -294,6 +316,27 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		time_irq = HAL_GetTick();
 	}
 }
+uint8_t Command_read(char str)
+{
+	uint8_t ret = 12;
+	switch(str)
+	{
+		case 'L':	ret = 11; break;
+		case 'l':	ret = 11; break;
+		case '=':	ret = 10; break;
+		case '0':	ret = 0; break;
+		case '1':	ret = 1; break;
+		case '2':	ret = 2; break;
+		case '3':	ret = 3; break;
+		case '4':	ret = 4; break;
+		case '5':	ret = 5; break;
+		case '6':	ret = 6; break;
+		case '7':	ret = 7; break;
+		case '8':	ret = 8; break;
+		case '9':	ret = 9; break;
+	}
+	return ret;
+}
 /* USER CODE END 4 */
 
 /**
@@ -328,4 +371,3 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif /* USE_FULL_ASSERT */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
